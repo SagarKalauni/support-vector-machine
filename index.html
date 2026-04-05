@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LU | Support Vector Machine Masterclass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700;800&family=Montserrat:wght@800;900&display=swap');
+        
+        :root {
+            --lu-gold: #B5A26C;
+            --obsidian: #020617;
+            --charcoal: #0f172a;
+            --neon-blue: #3b82f6;
+            --emerald: #10b981;
+            --error-red: #ef4444;
+            --purple: #a855f7;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--obsidian);
+            color: #e2e8f0;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .font-brand { font-family: 'Montserrat', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+
+        .slider-custom {
+            accent-color: var(--lu-gold);
+            width: 100%;
+            cursor: pointer;
+            height: 6px;
+            border-radius: 4px;
+            background: #1e293b;
+            outline: none;
+            -webkit-appearance: none;
+            transition: all 0.2s;
+        }
+        .slider-custom::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--lu-gold);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(181, 162, 108, 0.5);
+        }
+        .slider-custom:disabled::-webkit-slider-thumb {
+            background: #475569;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border: none;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+        
+        .btn-gold { background: var(--lu-gold); color: var(--obsidian); box-shadow: 0 4px 15px rgba(181, 162, 108, 0.3); }
+        .btn-gold:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(181, 162, 108, 0.4); }
+        
+        .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; }
+        .btn-outline:hover:not(:disabled) { background: rgba(255,255,255,0.05); color: white; border-color: rgba(255,255,255,0.4); }
+        .btn-outline.active { background: var(--neon-blue); color: white; border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+
+        /* Metric Cards */
+        .metric-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .metric-card:hover {
+            transform: translateY(-4px); 
+            background: rgba(255,255,255,0.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.15);
+        }
+        .click-hint {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            font-size: 10px;
+            color: #64748b;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .metric-card:hover .click-hint { opacity: 1; }
+        
+        /* Interactive Tooltip */
+        #interactive-tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(15, 23, 42, 0.95);
+            color: #fff;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--lu-gold);
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            pointer-events: none;
+            z-index: 200;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            min-width: 280px;
+            max-width: 360px;
+        }
+
+        /* Custom Scrollbar */
+        .terminal-scroll::-webkit-scrollbar { width: 6px; }
+        .terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+        .terminal-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        /* D3 Styles */
+        .axis-label { font-size: 10px; font-weight: 900; fill: #64748b; text-transform: uppercase; letter-spacing: 0.1em; }
+        
+        .data-point { transition: r 0.2s, filter 0.2s, fill 0.3s; cursor: grab; stroke: white; stroke-width: 1.5; }
+        .data-point:active { cursor: grabbing; }
+        .data-point:hover { filter: drop-shadow(0 0 10px rgba(255,255,255,0.8)); }
+        
+        .class-1 { fill: var(--emerald); } /* Green (+1) */
+        .class--1 { fill: var(--error-red); } /* Red (-1) */
+        
+        /* Support Vector Glow */
+        .support-vector {
+            stroke: var(--lu-gold);
+            stroke-width: 3.5;
+            filter: drop-shadow(0 0 14px rgba(181, 162, 108, 0.9));
+        }
+
+        .hyperplane { stroke: white; stroke-width: 3; transition: all 0.1s; }
+        .margin-line-pos { stroke: var(--emerald); stroke-width: 2; stroke-dasharray: 6,4; opacity: 0.8; transition: all 0.1s; }
+        .margin-line-neg { stroke: var(--error-red); stroke-width: 2; stroke-dasharray: 6,4; opacity: 0.8; transition: all 0.1s; }
+        
+        .violation-line { opacity: 0.8; transition: all 0.1s; }
+        
+        /* Sub-optimal simulation lines */
+        .sim-line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1.5; }
+
+        /* Invisible hover catchers for lines */
+        .hover-catcher { stroke: transparent; stroke-width: 20; cursor: help; }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+    <!-- Interactive Universal Tooltip -->
+    <div id="interactive-tooltip"></div>
+
+    <!-- Educational Modal -->
+    <div id="metric-modal" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/70 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-8 max-w-lg w-full shadow-2xl transform scale-95 transition-transform duration-300" id="modal-content-box">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 id="modal-title" class="text-2xl font-black text-white uppercase tracking-wider">Concept</h2>
+                    <p class="text-xs text-slate-400 font-bold tracking-widest uppercase mt-1">ISLR Textbook Definition</p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-lg transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6 text-sm text-slate-300">
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                    <strong class="flex items-center gap-2 text-blue-400 uppercase text-[10px] tracking-widest mb-2">
+                        <i data-lucide="book-open" class="w-3 h-3"></i> Definition
+                    </strong>
+                    <p id="modal-def" class="text-slate-200 leading-relaxed"></p>
+                </div>
+                
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                    <strong class="flex items-center gap-2 text-purple-400 uppercase text-[10px] tracking-widest mb-2">
+                        <i data-lucide="function-square" class="w-3 h-3"></i> Mathematical Constraint
+                    </strong>
+                    <div id="modal-form" class="font-mono text-center text-white font-bold bg-black/40 py-3 px-2 rounded-lg text-xs break-all flex flex-col items-center justify-center min-h-[50px] gap-2"></div>
+                </div>
+
+                <div class="bg-blue-900/20 p-4 rounded-xl border border-blue-500/20">
+                    <strong class="flex items-center gap-2 text-[--lu-gold] uppercase text-[10px] tracking-widest mb-2">
+                        <i data-lucide="lightbulb" class="w-3 h-3"></i> Why It Matters
+                    </strong>
+                    <p id="modal-interp" class="text-blue-100 italic text-xs leading-relaxed"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-[1700px] w-full mx-auto flex flex-col h-full relative z-10">
+        <!-- HEADER -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-white/5 pb-4 flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <div class="bg-blue-500/10 p-3 rounded-xl border border-blue-500/20">
+                    <i data-lucide="split-square-horizontal" class="text-blue-400 w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="font-brand text-[10px] tracking-[0.4em] text-[--lu-gold] uppercase block mb-1">DSCI 356000 | Lindenwood University</span>
+                    <h1 class="text-2xl md:text-3xl font-brand font-black text-white tracking-tighter uppercase leading-none">
+                        Support Vector Machine <span class="text-transparent bg-clip-text bg-gradient-to-r from-[--lu-gold] to-white/40">Lab</span>
+                    </h1>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Instructor: Mr. Kalauni • Hyperplanes & Slack Variables</p>
+                </div>
+            </div>
+            
+            <div class="flex gap-2 bg-slate-900/50 p-1.5 rounded-xl border border-slate-800">
+                <button onclick="setDatasetMode('separable')" id="btn-sep" class="btn btn-outline active">1. Linearly Separable</button>
+                <button onclick="setDatasetMode('non-separable')" id="btn-nonsep" class="btn btn-outline">2. Non-Separable (Soft Margin)</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+            
+            <!-- LEFT PANEL: CONTROLS & METRICS -->
+            <aside class="lg:col-span-4 flex flex-col gap-4 overflow-y-auto pr-2">
+                
+                <!-- Dynamic Controls based on Dataset Mode -->
+                <div class="glass p-6 rounded-[2rem]" id="control-panel">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Educational Live Metrics -->
+                <div class="glass p-6 rounded-[2rem] flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <i data-lucide="bar-chart-2" class="w-4 h-4 text-[--neon-blue]"></i> Live Analytics
+                        </h3>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 gap-3 flex-1">
+                        
+                        <!-- MARGIN WIDTH CARD -->
+                        <div class="metric-card group" onclick="openModal('margin')">
+                            <span class="click-hint"><i data-lucide="zoom-in" class="w-3 h-3"></i></span>
+                            <div class="flex justify-between items-end mb-1">
+                                <div class="text-[10px] text-slate-400 font-bold uppercase mb-1">Margin ($M$)</div>
+                                <div class="text-2xl font-mono font-black text-white" id="val-margin">0.00</div>
+                            </div>
+                            <div class="bg-black/30 p-2 rounded-lg flex justify-between items-center font-mono text-[10px] border border-white/5">
+                                <span class="text-slate-400">Distance to margin boundary</span>
+                                <span class="text-slate-500 text-[8px] uppercase">1 / ||&beta;||</span>
+                            </div>
+                        </div>
+
+                        <!-- SLACK VARIABLES CARD -->
+                        <div class="metric-card group border-l-4 border-l-[--error-red]" onclick="openModal('c_param')">
+                            <span class="click-hint"><i data-lucide="zoom-in" class="w-3 h-3"></i></span>
+                            <div class="flex justify-between items-end mb-1">
+                                <div class="text-[10px] text-slate-400 font-bold uppercase mb-1">Total Slack (&Sigma;&epsilon;<sub>i</sub>)</div>
+                                <div class="text-2xl font-mono font-black text-[--error-red]" id="val-slack">0.00</div>
+                            </div>
+                            <div class="bg-black/30 p-2 rounded-lg flex justify-between items-center font-mono text-[10px] border border-white/5">
+                                <span class="text-slate-400 font-bold" id="val-budget-hint">Must be &le; Budget (C)</span>
+                                <span class="text-slate-500 text-[8px] uppercase">ISLR Eq. 9.15</span>
+                            </div>
+                        </div>
+
+                        <!-- SUPPORT VECTORS CARD -->
+                        <div class="metric-card group" onclick="openModal('sv')">
+                            <span class="click-hint"><i data-lucide="zoom-in" class="w-3 h-3"></i></span>
+                            <div class="flex justify-between items-end mb-1">
+                                <div class="text-[10px] text-slate-400 font-bold uppercase mb-1">Support Vectors</div>
+                                <div class="text-2xl font-mono font-black text-[--lu-gold]" id="val-sv">0</div>
+                            </div>
+                            <div class="bg-black/30 p-2 rounded-lg flex justify-between items-center font-mono text-[10px] border border-white/5">
+                                <span class="text-slate-400">Points shaping the boundary</span>
+                                <span class="text-slate-500 text-[8px] uppercase">Glowing Gold</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Individual Slack Tracking -->
+                <div class="glass p-6 rounded-[2rem] flex flex-col flex-1 min-h-[250px]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 cursor-pointer" onclick="openModal('slack')">
+                            <i data-lucide="list-checks" class="w-4 h-4 text-[--lu-gold]"></i> Slack Tracking (&epsilon;<sub>i</sub>)
+                            <i data-lucide="info" class="w-3 h-3 text-slate-500 hover:text-white transition-colors"></i>
+                        </h3>
+                    </div>
+                    <div class="flex-1 overflow-y-auto pr-2 space-y-2 terminal-scroll" id="slack-list">
+                        <!-- JS populated -->
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- RIGHT PANEL: MAIN PLOT -->
+            <div class="lg:col-span-8 flex flex-col gap-4">
+                <div class="glass p-6 rounded-[2rem] flex-1 relative flex flex-col shadow-2xl border-white/10">
+                    <div class="flex justify-between items-start z-10 mb-2">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <i data-lucide="maximize" class="w-4 h-4 text-[--lu-gold]"></i> The Feature Space
+                        </h3>
+                        <div class="flex gap-4">
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[--error-red] border border-white"></span> <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Class -1</span></div>
+                            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[--emerald] border border-white"></span> <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Class +1</span></div>
+                        </div>
+                    </div>
+                    
+                    <div id="main-plot" class="w-full flex-1 relative mt-2 bg-[#020617]/50 rounded-2xl border border-white/5 overflow-hidden shadow-inner"></div>
+                    
+                    <div class="mt-4 p-4 bg-slate-900/80 rounded-2xl border border-slate-800 text-[10px] text-slate-400 leading-relaxed flex gap-4">
+                        <div class="flex-1 border-r border-slate-700 pr-4">
+                            <strong class="text-white block mb-1 text-[11px]"><i data-lucide="mouse-pointer-click" class="w-3 h-3 inline pb-0.5"></i> The Support Vector Rule</strong> 
+                            <span class="text-[--lu-gold] font-bold">Only the Support Vectors draw the margin.</span> Notice the dashed anchor lines tying the glowing points to the margin bounds. Deleting or moving any non-glowing point does absolutely nothing to the model!
+                        </div>
+                        <div class="flex-1">
+                            <strong class="text-white block mb-1 text-[11px]">Inspector Tool</strong> 
+                            Hover over the center Hyperplane, the dashed Margins, or the Data Points to reveal the exact mathematical definitions from the Lecture slides (Pages 3, 15, 16).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL STATE & MATH ENGINE ---
+        let datasetMode = 'separable'; // 'separable' or 'non-separable'
+        let dataset = [];
+        let uiBudgetC = 2.0; // The UI representation of C (Budget)
+        
+        // SVM Weights
+        let w1 = 0.5, w2 = 0.5, b = -0.5;
+        
+        // Optimizer State
+        let m1=0, v1=0, m2=0, v2=0, mb=0, vb=0;
+        const beta1 = 0.9, beta2 = 0.999, eps = 1e-8;
+        let adamTime = 0;
+        let optimTimer = null;
+        let isSimulating = false;
+
+        // D3 SVGs
+        let svg, width, height, xScale, yScale;
+        
+        // D3 Elements
+        let simLinesGroup, boundaryLine, marginPosLine, marginNegLine, pointsGroup, violationsGroup;
+        let hoverCatchBoundary, hoverCatchPos, hoverCatchNeg;
+
+        // Scale functions to keep math stable around 0
+        function scale(val) { return (val - 50) / 25; }
+        
+        // --- EDUCATIONAL CONTENT DICTIONARY ---
+        const educationalInfo = {
+            margin: {
+                title: "Maximal Margin (M)",
+                def: "A hyperplane in a p-dimensional space is defined as β₀ + β₁X₁ + β₂X₂ = 0 (Page 3). The SVM maximizes the margin M, which is the distance from the hyperplane to the closest observations.",
+                form: "<span>Maximize M</span><br/><span>Subject to: &Sigma;β<sub>j</sub>² = 1</span><br/><span>y<sub>i</sub>(β₀ + β₁X₁ + β₂X₂) &ge; M(1 - &epsilon;<sub>i</sub>)</span>",
+                interp: "By maximizing the margin M, we create the widest possible 'street'. A wider margin increases generalization. When classes are separable, we simply maximize M with all ε_i = 0."
+            },
+            c_param: {
+                title: "The Violation Budget (C)",
+                def: "C bounds the sum of the slack variables (&epsilon;), determining the number and severity of margin violations we will tolerate. (Reference: ISLR Eq 9.15)",
+                form: "<span>&Sigma;&epsilon;<sub>i</sub> &le; C</span>",
+                interp: "If C=0, there is no budget for violations (Hard Margin). A larger C allows for a wider margin by permitting violations. Note: Large C = High Bias, Low Variance. Small C = Low Bias, High Variance."
+            },
+            slack: {
+                title: "Interpreting Slack Variables (&epsilon;)",
+                def: "Slack variables tell us exactly where an observation lies relative to the margin and hyperplane. (Reference: Page 15)",
+                form: "<span>&epsilon;<sub>i</sub> = 0 (Correct side of margin)</span><br/><span>0 < &epsilon;<sub>i</sub> &le; 1 (Violated the margin)</span><br/><span>&epsilon;<sub>i</sub> > 1 (Misclassified)</span>",
+                interp: "These variables allow the SVM to handle non-separable data by creating a 'soft margin'. Moving an observation with ε_i = 0 does not change the model!"
+            },
+            sv: {
+                title: "Support Vectors",
+                def: "Observations that lie directly on the margin, or on the wrong side of the margin for their class, are known as support vectors. (Reference: Page 16)",
+                form: "<span>&epsilon;<sub>i</sub> > 0 OR exactly on margin</span>",
+                interp: "Only observations that either lie on the margin or violate the margin will affect the hyperplane. This is visually proven by the dashed anchor lines connecting these specific points to the margin limits!"
+            }
+        };
+
+        // --- UI LOGIC ---
+        window.setDatasetMode = function(mode) {
+            if(isSimulating) return;
+            datasetMode = mode;
+            document.getElementById('btn-sep').classList.toggle('active', mode === 'separable');
+            document.getElementById('btn-nonsep').classList.toggle('active', mode === 'non-separable');
+            
+            buildControlPanel();
+            generateData();
+        }
+
+        function buildControlPanel() {
+            const panel = document.getElementById('control-panel');
+            if (datasetMode === 'separable') {
+                panel.innerHTML = `
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <i data-lucide="infinity" class="w-4 h-4 text-[--neon-blue]"></i> 1. The Infinite Models Problem
+                    </h3>
+                    <p class="text-[11px] text-slate-300 leading-relaxed mb-6">
+                        When data is perfectly linearly separable, <b>millions of hyperplanes</b> can classify it with 0 errors. How do we choose the best one?
+                    </p>
+                    <div class="flex flex-col gap-3">
+                        <button onclick="simulateSuboptimal()" class="btn btn-outline w-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
+                            <i data-lucide="shuffle" class="w-4 h-4"></i> Show Infinite Models
+                        </button>
+                        <button onclick="randomizeData()" class="btn btn-outline w-full flex items-center justify-center gap-2" style="border-color: var(--lu-gold); color: var(--lu-gold);">
+                            <i data-lucide="dices" class="w-4 h-4"></i> Randomize Points
+                        </button>
+                        <button onclick="findMaximalMargin()" class="btn btn-gold w-full mt-2">
+                            <i data-lucide="target" class="w-4 h-4"></i> Find Maximal Margin
+                        </button>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/5">
+                        <p class="text-[10px] text-slate-400 leading-relaxed italic">
+                            SVM solves this by finding the hyperplane that is farthest from the closest training observations (Maximal Margin Classifier).
+                        </p>
+                    </div>
+                `;
+            } else {
+                panel.innerHTML = `
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4 text-[--lu-gold]"></i> 1. The Soft Margin
+                    </h3>
+                    <div class="mb-5">
+                        <div class="flex justify-between text-xs font-bold text-slate-300 mb-2">
+                            <span>Violation Budget (C)</span>
+                            <span id="c-val" class="font-mono text-[--lu-gold] text-xl">${uiBudgetC.toFixed(1)}</span>
+                        </div>
+                        <input type="range" id="c-slider" min="0.1" max="16.0" step="0.1" value="${uiBudgetC}" class="slider-custom" oninput="handleSliderChange(this.value)">
+                        <div class="flex justify-between mt-2">
+                            <span class="text-[9px] text-slate-500 uppercase font-bold leading-tight">Small C (Strict)<br/><span class="text-red-400">High Variance</span></span>
+                            <span class="text-[9px] text-slate-500 uppercase font-bold leading-tight text-right">Large C (Soft)<br/><span class="text-blue-400">High Bias</span></span>
+                        </div>
+                    </div>
+                    <button onclick="randomizeData()" class="btn btn-outline w-full flex items-center justify-center gap-2 mb-4" style="border-color: var(--lu-gold); color: var(--lu-gold);">
+                        <i data-lucide="dices" class="w-4 h-4"></i> Randomize Points
+                    </button>
+                    <div class="pt-4 border-t border-white/5">
+                        <p class="text-[11px] text-slate-300 leading-relaxed italic">
+                            The solver employs a Bisection algorithm to strictly guarantee the math constraint: <br/><br/>
+                            <span class="font-mono text-[--lu-gold] font-bold text-center block">&Sigma;&epsilon;<sub>i</sub> &le; C</span><br/>
+                            Watch the margin automatically expand to perfectly consume the budget!
+                        </p>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        window.handleSliderChange = function(val) {
+            uiBudgetC = parseFloat(val);
+            document.getElementById('c-val').innerText = uiBudgetC.toFixed(1);
+            solveSVM(uiBudgetC, false);
+        }
+
+        window.openModal = function(type) {
+            const info = educationalInfo[type];
+            if(!info) return;
+
+            document.getElementById('modal-title').innerText = info.title;
+            document.getElementById('modal-def').innerText = info.def;
+            document.getElementById('modal-form').innerHTML = info.form;
+            document.getElementById('modal-interp').innerText = info.interp;
+
+            const modal = document.getElementById('metric-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                document.getElementById('modal-content-box').classList.remove('scale-95');
+            }, 10);
+        }
+
+        window.closeModal = function() {
+            const modal = document.getElementById('metric-modal');
+            modal.classList.add('opacity-0');
+            document.getElementById('modal-content-box').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+        document.getElementById('metric-modal').addEventListener('click', function(e) {
+            if(e.target === this) window.closeModal();
+        });
+
+        // --- INIT & SETUP ---
+        function init() {
+            const container = document.getElementById('main-plot');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            const pad = {top: 20, right: 20, bottom: 30, left: 30};
+            
+            svg = d3.select("#main-plot").append("svg")
+                .attr("width", width).attr("height", height);
+                
+            xScale = d3.scaleLinear().domain([0, 100]).range([pad.left, width - pad.right]);
+            yScale = d3.scaleLinear().domain([0, 100]).range([height - pad.bottom, pad.top]);
+
+            // Axes
+            svg.append("g").attr("transform", `translate(0, ${height - pad.bottom})`).call(d3.axisBottom(xScale).ticks(5).tickFormat("")).attr("class", "axis-label opacity-30");
+            svg.append("g").attr("transform", `translate(${pad.left}, 0)`).call(d3.axisLeft(yScale).ticks(5).tickFormat("")).attr("class", "axis-label opacity-30");
+
+            // Groups ordering
+            simLinesGroup = svg.append("g").attr("class", "sim-lines");
+            violationsGroup = svg.append("g");
+            
+            // Hyperplanes
+            marginPosLine = svg.append("line").attr("class", "margin-line-pos");
+            marginNegLine = svg.append("line").attr("class", "margin-line-neg");
+            boundaryLine = svg.append("line").attr("class", "hyperplane");
+            
+            // Hover Catchers
+            hoverCatchBoundary = svg.append("line").attr("class", "hover-catcher");
+            hoverCatchPos = svg.append("line").attr("class", "hover-catcher");
+            hoverCatchNeg = svg.append("line").attr("class", "hover-catcher");
+
+            pointsGroup = svg.append("g");
+
+            // Hover Catcher Events
+            setupHoverCatcher(hoverCatchBoundary, "Hyperplane (Decision Boundary)", "β₀ + β₁X₁ + β₂X₂ = 0", "Any data point lying exactly on this line satisfies the equation = 0, meaning the model is 50/50 unsure which class it belongs to. In a hard margin scenario, this line is perfectly equidistant from the support vectors.");
+            setupHoverCatcher(hoverCatchPos, "Margin for Class +1", "β₀ + β₁X₁ + β₂X₂ = 1", "The boundary of the 'street' for Class +1 (Green). The distance from the hyperplane to this line defines the margin M. The goal is to maximize this width.");
+            setupHoverCatcher(hoverCatchNeg, "Margin for Class -1", "β₀ + β₁X₁ + β₂X₂ = -1", "The boundary of the 'street' for Class -1 (Red). Support Vectors are the specific points that lie exactly on these margins, or violate them inside the street.");
+
+            buildControlPanel();
+            window.generateData();
+            
+            // Interactive SVG Background for adding points
+            svg.on("click", (event) => {
+                if (isSimulating || event.target.tagName !== 'svg') return;
+                const [px, py] = d3.pointer(event);
+                const clickX = Math.max(0, Math.min(100, xScale.invert(px)));
+                const clickY = Math.max(0, Math.min(100, yScale.invert(py)));
+                
+                // Assign class based on the side of the current line
+                const currentPred = w1*scale(clickX) + w2*scale(clickY) + b;
+                const newClass = currentPred >= 0 ? 1 : -1;
+                
+                dataset.push({ id: Date.now(), x: clickX, y: clickY, class: newClass, slack: 0, isSV: false });
+                solveSVM(uiBudgetC, false);
+                drawAll(true);
+            });
+        }
+
+        function setupHoverCatcher(element, title, formula, desc) {
+            element.on("mouseover", (event) => {
+                if(isSimulating) return;
+                const t = document.getElementById('interactive-tooltip');
+                t.innerHTML = `
+                    <div style="margin-bottom:6px; border-bottom:1px solid #334155; padding-bottom:6px;">
+                        <strong style="color:var(--lu-gold); font-size:14px; text-transform:uppercase;">${title}</strong>
+                    </div>
+                    <div style="font-family:monospace; font-weight:bold; font-size:14px; margin-bottom:8px; color:white;">
+                        Equation: ${formula}
+                    </div>
+                    <div style="color:#94a3b8; font-size:11px; line-height:1.5;">
+                        ${desc}
+                    </div>
+                `;
+                t.style.display = 'block';
+                t.style.left = (event.pageX + 20) + 'px';
+                t.style.top = (event.pageY - 20) + 'px';
+            })
+            .on("mousemove", (event) => {
+                const t = document.getElementById('interactive-tooltip');
+                t.style.left = (event.pageX + 20) + 'px';
+                t.style.top = (event.pageY - 20) + 'px';
+            })
+            .on("mouseout", () => {
+                document.getElementById('interactive-tooltip').style.display = 'none';
+            });
+        }
+
+        // --- DATA GENERATION ---
+        window.generateData = function() {
+            if(isSimulating) return;
+            dataset = [];
+            
+            // EXACTLY 8 points per class (N=16 total)
+            if (datasetMode === 'separable') {
+                dataset.push({ id: `neg_0`, x: 20, y: 80, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_1`, x: 30, y: 70, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_2`, x: 10, y: 90, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_3`, x: 25, y: 85, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_4`, x: 15, y: 75, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_5`, x: 35, y: 75, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_6`, x: 15, y: 85, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_7`, x: 25, y: 65, class: -1, slack: 0, isSV: false }); 
+
+                dataset.push({ id: `pos_0`, x: 80, y: 20, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_1`, x: 70, y: 30, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_2`, x: 90, y: 10, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_3`, x: 75, y: 15, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_4`, x: 85, y: 25, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_5`, x: 65, y: 25, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_6`, x: 85, y: 15, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_7`, x: 75, y: 35, class: 1, slack: 0, isSV: false }); 
+            } else {
+                // 7 standard + 1 rogue point crossing the gap per class
+                dataset.push({ id: `neg_0`, x: 20, y: 80, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_1`, x: 30, y: 70, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_2`, x: 10, y: 90, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_3`, x: 25, y: 85, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_4`, x: 15, y: 75, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_5`, x: 35, y: 75, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_6`, x: 15, y: 85, class: -1, slack: 0, isSV: false });
+                dataset.push({ id: `neg_rogue`, x: 65, y: 35, class: -1, slack: 0, isSV: false }); 
+
+                dataset.push({ id: `pos_0`, x: 80, y: 20, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_1`, x: 70, y: 30, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_2`, x: 90, y: 10, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_3`, x: 75, y: 15, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_4`, x: 85, y: 25, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_5`, x: 65, y: 25, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_6`, x: 85, y: 15, class: 1, slack: 0, isSV: false });
+                dataset.push({ id: `pos_rogue`, x: 35, y: 65, class: 1, slack: 0, isSV: false }); 
+                
+                uiBudgetC = 2.5;
+                if(document.getElementById('c-slider')) {
+                    document.getElementById('c-slider').value = 2.5;
+                    document.getElementById('c-val').innerText = "2.5";
+                }
+            }
+            
+            // Reset Optimizer Start State
+            w1 = 0.5; w2 = 0.5; b = -0.5;
+            m1=0; v1=0; m2=0; v2=0; mb=0; vb=0; adamTime=0;
+            
+            if (datasetMode === 'separable') {
+                drawAll(false); 
+                boundaryLine.style("opacity", 0);
+                marginPosLine.style("opacity", 0);
+                marginNegLine.style("opacity", 0);
+            } else {
+                solveSVM(uiBudgetC, false); 
+            }
+        }
+
+        window.randomizeData = function() {
+            if(isSimulating) return;
+            dataset = [];
+            
+            if (datasetMode === 'separable') {
+                for(let i=0; i<8; i++) {
+                    dataset.push({ id: `neg_${i}`, x: Math.random()*30 + 10, y: Math.random()*80 + 10, class: -1, slack: 0, isSV: false });
+                    dataset.push({ id: `pos_${i}`, x: Math.random()*30 + 60, y: Math.random()*80 + 10, class: 1, slack: 0, isSV: false });
+                }
+            } else {
+                // Non-separable random (overlapping)
+                for(let i=0; i<8; i++) {
+                    dataset.push({ id: `neg_${i}`, x: Math.random()*50 + 10, y: Math.random()*80 + 10, class: -1, slack: 0, isSV: false });
+                    dataset.push({ id: `pos_${i}`, x: Math.random()*50 + 40, y: Math.random()*80 + 10, class: 1, slack: 0, isSV: false });
+                }
+                uiBudgetC = 2.5;
+                if(document.getElementById('c-slider')) {
+                    document.getElementById('c-slider').value = 2.5;
+                    document.getElementById('c-val').innerText = "2.5";
+                }
+            }
+            
+            w1 = 0.5; w2 = 0.5; b = -0.5;
+            m1=0; v1=0; m2=0; v2=0; mb=0; vb=0; adamTime=0;
+            
+            if (datasetMode === 'separable') {
+                drawAll(false); 
+                boundaryLine.style("opacity", 0);
+                marginPosLine.style("opacity", 0);
+                marginNegLine.style("opacity", 0);
+            } else {
+                solveSVM(uiBudgetC, false); 
+            }
+        }
+
+        // --- ANIMATIONS ---
+        window.simulateSuboptimal = async function() {
+            if(isSimulating || datasetMode !== 'separable') return;
+            isSimulating = true;
+            
+            simLinesGroup.selectAll("*").remove();
+            boundaryLine.style("opacity", 0);
+            marginPosLine.style("opacity", 0);
+            marginNegLine.style("opacity", 0);
+            violationsGroup.selectAll("*").remove();
+
+            // Find random lines that PERFECTLY classify the data (100% accuracy -> y*(w.x + b) > 0)
+            let validLines = [];
+            let attempts = 0;
+            while(validLines.length < 30 && attempts < 5000) {
+                attempts++;
+                let tw1 = Math.random() * 2 - 1;
+                let tw2 = Math.random() * 2 - 1;
+                let tb = Math.random() * 4 - 2;
+                
+                let isValid = true;
+                for(let pt of dataset) {
+                    if (pt.class * (tw1 * scale(pt.x) + tw2 * scale(pt.y) + tb) <= 0) { 
+                        isValid = false; break; 
+                    }
+                }
+                if(isValid) validLines.push({w1: tw1, w2: tw2, b: tb});
+            }
+
+            for(let i=0; i<validLines.length; i++) {
+                const ln = validLines[i];
+                const B = 25*ln.b - 50*ln.w1 - 50*ln.w2;
+                const getY = (X) => (-B - ln.w1*X) / ln.w2;
+                
+                simLinesGroup.append("line")
+                    .attr("class", "sim-line")
+                    .attr("x1", xScale(0)).attr("y1", yScale(getY(0)))
+                    .attr("x2", xScale(100)).attr("y2", yScale(getY(100)))
+                    .attr("opacity", 0)
+                    .transition().duration(200)
+                    .attr("opacity", 1);
+                    
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            isSimulating = false;
+        }
+
+        window.findMaximalMargin = function() {
+            if(isSimulating || datasetMode !== 'separable') return;
+            simLinesGroup.selectAll("line").transition().duration(1000).attr("opacity", 0).remove();
+            
+            boundaryLine.style("opacity", 1);
+            marginPosLine.style("opacity", 1);
+            marginNegLine.style("opacity", 1);
+            
+            // Reset Adam to cleanly find max margin
+            w1 = 0.5; w2 = 0.5; b = -0.5;
+            
+            // Animate Gradient Descent
+            let iter = 0;
+            if(optimTimer) clearInterval(optimTimer);
+            optimTimer = setInterval(() => {
+                let res = trainSGD(100000, 20); 
+                w1 = res.w1; w2 = res.w2; b = res.b;
+                drawAll(true);
+                iter += 20;
+                if(iter >= 400) {
+                    clearInterval(optimTimer);
+                    solveSVM(0, false); // Snap exactly
+                }
+            }, 30);
+        }
+
+        // --- STRICT BISECTION CONSTRAINT SOLVER ---
+        function trainSGD(K, epochs=500) {
+            let tw1 = 0.5, tw2 = 0.5, tb = -0.5; 
+            let lm1=0, lv1=0, lm2=0, lv2=0, lmb=0, lvb=0;
+            const beta1=0.9, beta2=0.999, e=1e-8, lr=0.1;
+            
+            for (let epoch=1; epoch<=epochs; epoch++) {
+                let dw1 = tw1, dw2 = tw2, db = 0; 
+                for (let i=0; i<dataset.length; i++) {
+                    let d = dataset[i];
+                    let margin = d.class * (tw1*scale(d.x) + tw2*scale(d.y) + tb);
+                    if (margin < 1) { 
+                        dw1 += K * (-d.class * scale(d.x));
+                        dw2 += K * (-d.class * scale(d.y));
+                        db  += K * (-d.class);
+                    }
+                }
+                
+                lm1 = beta1*lm1 + (1-beta1)*dw1; lv1 = beta2*lv1 + (1-beta2)*dw1*dw1;
+                lm2 = beta1*lm2 + (1-beta1)*dw2; lv2 = beta2*lv2 + (1-beta2)*dw2*dw2;
+                lmb = beta1*lmb + (1-beta1)*db;  lvb = beta2*lvb + (1-beta2)*db*db;
+                
+                let m1h = lm1/(1-Math.pow(beta1,epoch)), v1h = lv1/(1-Math.pow(beta2,epoch));
+                let m2h = lm2/(1-Math.pow(beta1,epoch)), v2h = lv2/(1-Math.pow(beta2,epoch));
+                let mbh = lmb/(1-Math.pow(beta1,epoch)), vbh = lvb/(1-Math.pow(beta2,epoch));
+                
+                tw1 -= lr * m1h / (Math.sqrt(v1h) + e);
+                tw2 -= lr * m2h / (Math.sqrt(v2h) + e);
+                tb  -= lr * mbh / (Math.sqrt(vbh) + e);
+            }
+            
+            let slack = 0;
+            dataset.forEach(d => { slack += Math.max(0, 1 - d.class*(tw1*scale(d.x) + tw2*scale(d.y) + tb)); });
+            return { w1: tw1, w2: tw2, b: tb, slack: slack };
+        }
+
+        function solveSVM(budgetC, isDrag = false) {
+            if(dataset.length === 0) return;
+            const epochs = isDrag ? 200 : 1000;
+
+            if (datasetMode === 'separable') {
+                // Hard Margin Optimization
+                let res = trainSGD(100000, epochs);
+                w1 = res.w1; w2 = res.w2; b = res.b;
+                
+                let minPos = Infinity, maxNeg = -Infinity;
+                dataset.forEach(pt => {
+                    let val = w1*scale(pt.x) + w2*scale(pt.y) + b;
+                    if (pt.class === 1 && val < minPos) minPos = val;
+                    if (pt.class === -1 && val > maxNeg) maxNeg = val;
+                });
+
+                if (minPos !== Infinity && maxNeg !== -Infinity && minPos > maxNeg) {
+                    let mid = (minPos + maxNeg) / 2;
+                    let s = 2 / (minPos - maxNeg);
+                    if (s > 0 && isFinite(s)) {
+                        w1 *= s; w2 *= s; b = (b - mid) * s;
+                    }
+                }
+            } else {
+                // Soft Margin Bisection
+                let hardRes = trainSGD(100000, epochs); 
+                
+                // IMPOSSIBLE BUDGET PUSH-BACK (Math constraint validation)
+                if (hardRes.slack > budgetC + 0.05) {
+                    uiBudgetC = hardRes.slack;
+                    let slider = document.getElementById('c-slider');
+                    if (slider) {
+                        slider.value = uiBudgetC;
+                        document.getElementById('c-val').innerText = uiBudgetC.toFixed(1);
+                    }
+                    w1 = hardRes.w1; w2 = hardRes.w2; b = hardRes.b;
+                } else {
+                    // Bisection Search to exactly hit the budget
+                    let lowK = 0.01;
+                    let highK = 100000;
+                    let bestRes = hardRes;
+                    
+                    const steps = isDrag ? 8 : 25; // Higher precision
+                    for (let i = 0; i < steps; i++) {
+                        let midK = (lowK + highK) / 2;
+                        let res = trainSGD(midK, epochs);
+                        
+                        if (res.slack > budgetC) {
+                            lowK = midK; // Slack too high -> Strict penalty needed
+                        } else {
+                            highK = midK; // Slack ok -> Try to soften more
+                            bestRes = res;
+                        }
+                    }
+                    w1 = bestRes.w1; w2 = bestRes.w2; b = bestRes.b;
+                }
+            }
+
+            dataset.forEach(d => {
+                d.slack = Math.max(0, 1 - d.class * (w1*scale(d.x) + w2*scale(d.y) + b));
+                d.isSV = d.slack > 1e-3 || Math.abs((d.class * (w1*scale(d.x) + w2*scale(d.y) + b)) - 1) < 0.05; 
+            });
+            
+            drawAll(true);
+        }
+
+        // --- DRAWING & UI ---
+        function drawAll(drawLines = true) {
+            const hasPos = dataset.some(d => d.class === 1);
+            const hasNeg = dataset.some(d => d.class === -1);
+            const canDraw = drawLines && hasPos && hasNeg && !isSimulating;
+
+            const W1 = w1, W2 = w2, B = 25*b - 50*w1 - 50*w2;
+            const getY = (X, offset) => (-B + offset*25 - W1*X) / W2;
+
+            if (canDraw) {
+                boundaryLine.style("display", "block");
+                marginPosLine.style("display", "block");
+                marginNegLine.style("display", "block");
+
+                const xLeft = -10, xRight = 110;
+                
+                boundaryLine
+                    .attr("x1", xScale(xLeft)).attr("y1", yScale(getY(xLeft, 0)))
+                    .attr("x2", xScale(xRight)).attr("y2", yScale(getY(xRight, 0)));
+                    
+                marginPosLine
+                    .attr("x1", xScale(xLeft)).attr("y1", yScale(getY(xLeft, 1)))
+                    .attr("x2", xScale(xRight)).attr("y2", yScale(getY(xRight, 1)));
+                    
+                marginNegLine
+                    .attr("x1", xScale(xLeft)).attr("y1", yScale(getY(xLeft, -1)))
+                    .attr("x2", xScale(xRight)).attr("y2", yScale(getY(xRight, -1)));
+
+                hoverCatchBoundary.attr("x1", xScale(xLeft)).attr("y1", yScale(getY(xLeft, 0))).attr("x2", xScale(xRight)).attr("y2", yScale(getY(xRight, 0)));
+                hoverCatchPos.attr("x1", xScale(xLeft)).attr("y1", yScale(getY(xLeft, 1))).attr("x2", xScale(xRight)).attr("y2", yScale(getY(xRight, 1)));
+                hoverCatchNeg.attr("x1", xScale(xLeft)).attr("y1", yScale(getY(xLeft, -1))).attr("x2", xScale(xRight)).attr("y2", yScale(getY(xRight, -1)));
+            } else {
+                boundaryLine.style("display", "none");
+                marginPosLine.style("display", "none");
+                marginNegLine.style("display", "none");
+            }
+
+            // Metrics Update
+            let totalSlack = 0;
+            let svCount = 0;
+            let slackItemsHtml = '';
+            
+            dataset.forEach(d => {
+                const currentSlack = d.slack || 0;
+                totalSlack += currentSlack;
+                if(d.isSV) svCount++;
+
+                let sCol = 'var(--emerald)', sRule = 'εᵢ=0 (Correct)';
+                if (currentSlack > 1) { sCol = 'var(--error-red)'; sRule = 'Misclassified'; }
+                else if (currentSlack > 0.01) { sCol = 'var(--lu-gold)'; sRule = 'Margin Violation'; }
+                
+                slackItemsHtml += `
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/40 border border-white/5 hover:bg-slate-800 transition-colors">
+                        <span style="color:${d.class > 0 ? 'var(--emerald)' : 'var(--error-red)'}; font-weight:bold; font-size:11px;">${d.class > 0 ? '+1' : '-1'}</span>
+                        <span class="font-mono text-slate-300 text-xs">${currentSlack.toFixed(3)}</span>
+                        <span class="font-mono text-[9px] font-bold" style="color:${sCol}">${sRule}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('slack-list').innerHTML = slackItemsHtml;
+
+            if (canDraw) {
+                const marginWidth = 1 / Math.sqrt(w1*w1 + w2*w2);
+                document.getElementById('val-margin').innerText = marginWidth.toFixed(3);
+                
+                // Visual Clamp for float jitters around constraint
+                if (datasetMode === 'non-separable' && totalSlack > uiBudgetC && totalSlack <= uiBudgetC + 0.2) {
+                    totalSlack = uiBudgetC;
+                }
+                
+                const slackEl = document.getElementById('val-slack');
+                const budgetHint = document.getElementById('val-budget-hint');
+
+                slackEl.innerText = totalSlack.toFixed(2);
+                
+                if (datasetMode === 'non-separable') {
+                    if (totalSlack <= uiBudgetC + 0.01) {
+                        slackEl.style.color = "var(--emerald)";
+                        budgetHint.innerHTML = `Must be &le; Budget (${uiBudgetC.toFixed(1)})<br/><span style="color:var(--emerald)">✓ Satisfied</span>`;
+                    } else {
+                        slackEl.style.color = "var(--error-red)";
+                        budgetHint.innerHTML = `Must be &le; Budget (${uiBudgetC.toFixed(1)})<br/><span style="color:var(--error-red)">⚠️ Boundary Hit</span>`;
+                    }
+                } else {
+                    slackEl.style.color = totalSlack > 0.01 ? "var(--error-red)" : "var(--emerald)";
+                    budgetHint.innerHTML = "Must be 0 (Hard Margin)";
+                }
+                
+                document.getElementById('val-sv').innerText = svCount;
+            } else {
+                document.getElementById('val-margin').innerText = "N/A";
+                document.getElementById('val-slack').innerText = "N/A";
+                document.getElementById('val-sv').innerText = "0";
+            }
+
+            // Draw Points & Violations
+            violationsGroup.selectAll("*").remove();
+
+            const circles = pointsGroup.selectAll(".data-point").data(dataset, d => d.id);
+            
+            circles.enter()
+                .append("circle")
+                .attr("class", d => `data-point class-${d.class > 0 ? '1' : '-1'}`)
+                .attr("r", 0)
+                .on("mouseover", (event, d) => {
+                    if(isSimulating) return;
+                    const t = document.getElementById('interactive-tooltip');
+                    const classText = d.class === 1 ? '<span style="color:var(--emerald)">Class +1 (Green)</span>' : '<span style="color:var(--error-red)">Class -1 (Red)</span>';
+                    const svText = d.isSV ? '<span style="color:var(--lu-gold); font-weight:bold;">Yes (Anchors Margin)</span>' : '<span style="color:#94a3b8">No (Can be deleted)</span>';
+                    
+                    let slackVal = d.slack || 0;
+                    let slackInterp = "", sColor = "";
+                    if (slackVal === 0) { 
+                        slackInterp = "Observation is on the correct side of the margin."; 
+                        sColor = "var(--emerald)"; 
+                    } else if (slackVal > 0 && slackVal <= 1) { 
+                        slackInterp = "Observation violated the margin."; 
+                        sColor = "var(--lu-gold)"; 
+                    } else { 
+                        slackInterp = "Observation is on the wrong side of the hyperplane (misclassified)."; 
+                        sColor = "var(--error-red)"; 
+                    }
+                    
+                    t.innerHTML = `
+                        <div style="margin-bottom:6px; border-bottom:1px solid #334155; padding-bottom:6px;">
+                            <strong style="color:var(--neon-blue); font-size:14px; text-transform:uppercase;">Data Point Info</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;"><span>Label:</span> ${classText}</div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px;"><span>Support Vector:</span> ${svText}</div>
+                        <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #334155;">
+                            <div style="color:white; font-weight:bold; font-size:14px; margin-bottom:4px; font-family:monospace;">Slack (&epsilon;<sub>i</sub>): ${slackVal.toFixed(3)}</div>
+                            <div style="font-size:11px; color:${sColor}; font-weight:bold;">Lecture Rule: ${slackInterp}</div>
+                        </div>
+                    `;
+                    t.style.display = 'block';
+                    t.style.left = (event.pageX + 20) + 'px';
+                    t.style.top = (event.pageY - 20) + 'px';
+                })
+                .on("mousemove", (event) => {
+                    const t = document.getElementById('interactive-tooltip');
+                    t.style.left = (event.pageX + 20) + 'px';
+                    t.style.top = (event.pageY - 20) + 'px';
+                })
+                .on("mouseout", () => {
+                    document.getElementById('interactive-tooltip').style.display = 'none';
+                })
+                .call(d3.drag()
+                    .on("start", () => { if(optimTimer) clearInterval(optimTimer); adamTime = 0; }) 
+                    .on("drag", (event, d) => {
+                        if(isSimulating) return;
+                        d.x = Math.max(0, Math.min(100, xScale.invert(event.x)));
+                        d.y = Math.max(0, Math.min(100, yScale.invert(event.y)));
+                        solveSVM(uiBudgetC, true); 
+                    })
+                    .on("end", () => {
+                        if(isSimulating) return;
+                        solveSVM(uiBudgetC, false); 
+                    })
+                )
+                .merge(circles)
+                .attr("cx", d => xScale(d.x))
+                .attr("cy", d => yScale(d.y))
+                .attr("class", d => `data-point class-${d.class > 0 ? '1' : '-1'} ${d.isSV && drawLines ? 'support-vector' : ''}`)
+                .transition().duration(50) 
+                .attr("r", d => (d.isSV && drawLines) ? 8 : 6);
+
+            circles.exit().remove();
+
+            if (drawLines) {
+                dataset.forEach(d => {
+                    if (d.isSV) {
+                        const C = B - 25 * d.class;
+                        const magSq = W1*W1 + W2*W2;
+                        const projX = d.x - W1 * (W1*d.x + W2*d.y + C) / magSq;
+                        const projY = d.y - W2 * (W1*d.x + W2*d.y + C) / magSq;
+
+                        violationsGroup.append("line")
+                            .attr("class", "violation-line")
+                            .attr("x1", xScale(d.x)).attr("y1", yScale(d.y))
+                            .attr("x2", xScale(projX)).attr("y2", yScale(projY))
+                            .attr("stroke", (d.slack || 0) > 0 ? "var(--error-red)" : "var(--lu-gold)")
+                            .attr("stroke-width", (d.slack || 0) > 0 ? 1.5 : 2)
+                            .attr("stroke-dasharray", "2,2");
+                    }
+                });
+            }
+            
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
